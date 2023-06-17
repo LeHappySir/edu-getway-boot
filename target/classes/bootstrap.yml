@@ -1,0 +1,147 @@
+server:
+  port: 9030
+
+spring:
+  application:
+    name: edu-gateway-boot
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        service-id: edu-config-boot
+      name: ${spring.application.name}
+      profile: dev
+    gateway:
+      routes:
+        - id: lagou-edu-boss
+          uri: lb://edu-boss-boot
+          predicates:
+            - Path=/boss/**
+          filters:
+            - StripPrefix=1
+
+        - id: lagou-edu-front
+          uri: lb://edu-front-boot
+          predicates:
+            - Path=/front/**
+          filters:
+            - StripPrefix=1
+      discovery:
+        locator:
+          enabled: true # 是否开启，默认为 false 关闭
+          url-expression: "'lb://' + serviceId" # 路由的目标地址的表达式，默认为 "'lb://' + serviceId"
+      # 默认过滤器，对应 FilterDefinition 数组
+      default-filters:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            # 允许携带认证信息
+            # 允许跨域的源(网站域名/ip)，设置*为全部
+            # 允许跨域请求里的head字段，设置*为全部
+            # 允许跨域的method， 默认为GET和OPTIONS，设置*为全部
+            # 跨域允许的有效期
+            allow-credentials: true
+            allowed-origins: "*"
+            allowed-headers: "*"
+            allowed-methods: "*"
+            #              - OPTIONS
+            #              - GET
+            #              - POST
+            max-age: 3600
+            # 允许response的head信息
+            # 默认仅允许如下6个：
+            #     Cache-Control
+            #     Content-Language
+            #     Content-Type
+            #     Expires
+            #     Last-Modified
+            #     Pragma
+            #exposed-headers:
+  servlet:
+    multipart:
+      max-request-size: "10MB"
+      max-file-size: "10MB"
+  jackson:
+    time-zone: GMT+8
+  #jwt密码
+  security:
+    oauth2:
+      jwt:
+        signingKey: 123456
+  main:
+    allow-bean-definition-overriding: true
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 300
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: edu
+    password: edu
+    virtual-host: /edu
+  klock:
+    address: 127.0.0.1:6379
+#注册到Eureka服务中心
+eureka:
+  client:
+    service-url:
+      # 注册到集群，就把多个Eurekaserver地址使用逗号连接起来即可；注册到单实例（非集群模式），那就写一个就ok
+      defaultZone: http://127.0.0.1:9020/eureka/
+    #eureka client刷新本地缓存时间 默认30s
+    registry-fetch-interval-seconds: 5
+  instance:
+    prefer-ip-address: true  #服务实例中显示ip，而不是显示主机名（兼容老的eureka版本）
+    # 实例名称： 192.168.1.103:lagou-service-resume:8080，我们可以自定义它
+    instance-id: ${spring.cloud.client.ip-address}:${spring.application.name}:${server.port}
+    #服务过期时间配置,超过这个时间没有接收到心跳EurekaServer就会将这个实例剔除 默认90s
+    lease-expiration-duration-in-seconds: 9
+    #服务刷新时间配置，每隔这个时间会主动心跳一次 默认30s
+    lease-renewal-interval-in-seconds: 3
+
+
+jetcache:
+  statIntervalMinutes: 1
+  areaInCacheName: false
+  hidePackages: com.lagou.edu
+  local:
+    # 默认永久本地缓存
+    default:
+      type: caffeine
+      keyConvertor: fastjson
+  remote:
+    # 默认永久的远程缓存
+    default:
+      type: redis
+      keyConvertor: fastjson
+      valueEncoder: kryo
+      valueDecoder: kryo
+      poolConfig:
+        minIdle: 5
+        maxIdle: 20
+        maxTotal: 50
+      host: 127.0.0.1
+      port: 6379
+
+#网关白名单，无需要签权url
+gate:
+  ignore:
+    authentication:
+      startWith: /oauth,/open,/v2/api-docs,/user/login,/course,/ad,/pay,/doc.html,/webjars,/swagger,/pay/wxCallback,/pay/zfbCallback,/user/vfcode,/user/refresh_token,/weixin,/comment,/permission/getUserPermissions
+# 日志配置
+logging:
+  config: classpath:logback.xml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*' # 需要开放的端点。默认值只打开 health 和 info 两个端点。通过设置 * ，可以开放所有端点。
+  endpoint:
+    # Health 端点配置项，对应 HealthProperties 配置类
+    health:
+      enabled: true # 是否开启。默认为 true 开启。
+      show-details: ALWAYS # 何时显示完整的健康信息。默认为 NEVER 都不展示。可选 WHEN_AUTHORIZED 当经过授权的用户；可选 ALWAYS 总是展示。
